@@ -24,7 +24,7 @@ export default function BookAppointmentPage() {
   const [loading, setLoading] = useState(false);
   const [hospitalsLoading, setHospitalsLoading] = useState(true);
   const navigate = useNavigate();
-  
+
   const user = (() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
@@ -53,7 +53,7 @@ export default function BookAppointmentPage() {
       try {
         setHospitalsLoading(true);
         const response = await axios.get("http://localhost:5001/api/doctors/");
-        
+
         let list = [];
         if (Array.isArray(response.data)) {
           list = response.data;
@@ -63,7 +63,7 @@ export default function BookAppointmentPage() {
 
         setHospitals(list);
         setFilteredHospitals(list);
-        
+
         // Fetch prices for all hospitals
         await fetchHospitalPrices(list);
       } catch (err) {
@@ -72,14 +72,14 @@ export default function BookAppointmentPage() {
         setHospitalsLoading(false);
       }
     };
-    
+
     fetchHospitals();
   }, []);
 
   // Fetch prices for all hospitals
   const fetchHospitalPrices = async (hospitalsList) => {
     const pricesMap = {};
-    
+
     for (const hospital of hospitalsList) {
       try {
         const response = await axios.get(`http://localhost:5001/api/prices/hospital/${hospital._id}`);
@@ -93,7 +93,7 @@ export default function BookAppointmentPage() {
         pricesMap[hospital._id] = {};
       }
     }
-    
+
     setHospitalPrices(pricesMap);
   };
 
@@ -126,24 +126,54 @@ export default function BookAppointmentPage() {
   };
 
   // Fetch taken times
-  useEffect(() => {
-    const fetchTakenTimes = async () => {
-      if (!selectedHospital || !formData.date) return;
-      
-      try {
-        const response = await axios.get(
-          `http://localhost:5001/api/appointments/availability?doctorId=${selectedHospital._id}&date=${formData.date}`
-        );
-        if (response.data.appointments) {
-          setTakenTimes(response.data.appointments.map(a => a.time));
-        }
-      } catch (err) {
-        console.error("Failed to fetch taken times", err);
-      }
-    };
+useEffect(() => {
+  const fetchTakenTimes = async () => {
+    if (!selectedHospital || !formData.date) {
+      console.log('Missing: selectedHospital or date');
+      return;
+    }
     
-    fetchTakenTimes();
-  }, [selectedHospital, formData.date]);
+    if (!formData.doctorSpecialty) {
+      console.log('No specialty selected yet, skipping availability fetch');
+      setTakenTimes([]); // Clear taken times when no specialty selected
+      return;
+    }
+    
+    try {
+      console.log('Fetching availability for:', {
+        doctorId: selectedHospital._id,
+        date: formData.date,
+        specialty: formData.doctorSpecialty
+      });
+      
+      const response = await axios.get(
+        `http://localhost:5001/api/appointments/availability`,
+        {
+          params: {
+            doctorId: selectedHospital._id,
+            date: formData.date,
+            specialty: formData.doctorSpecialty
+          }
+        }
+      );
+      
+      console.log('Availability response:', response.data);
+      
+      if (response.data.appointments) {
+        const bookedTimes = response.data.appointments.map(a => a.time);
+        console.log('Booked times for this specialty:', bookedTimes);
+        setTakenTimes(bookedTimes);
+      } else {
+        setTakenTimes([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch taken times", err);
+      setTakenTimes([]);
+    }
+  };
+  
+  fetchTakenTimes();
+}, [selectedHospital, formData.date, formData.doctorSpecialty]);
 
   // Fetch reviews when hospital is selected
   useEffect(() => {
@@ -173,40 +203,50 @@ export default function BookAppointmentPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError(null);
+  setSuccess(null);
 
-    if (!formData.hospitalId || !formData.date || !formData.time || !formData.doctorSpecialty) {
-      setError("Please fill in all required fields");
-      return;
-    }
+  if (!formData.hospitalId || !formData.date || !formData.time || !formData.doctorSpecialty) {
+    setError("Please fill in all required fields");
+    return;
+  }
 
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const appointmentData = {
-        doctorId: formData.hospitalId,
-        date: formData.date,
-        time: formData.time,
-        doctorSpecialty: formData.doctorSpecialty,
-        notes: formData.notes,
-      };
+  // Double-check if time slot is still available
+  if (takenTimes.includes(formData.time)) {
+    setError(`Sorry, ${formData.time} slot for ${formData.doctorSpecialty} is no longer available. Please select another time.`);
+    return;
+  }
 
-      await axios.post("http://localhost:5001/api/appointments/", appointmentData, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      
-      setSuccess("Appointment booked successfully!");
-      setTimeout(() => navigate("/profile"), 1500);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to book appointment");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    const appointmentData = {
+      doctorId: formData.hospitalId,
+      date: formData.date,
+      time: formData.time,
+      doctorSpecialty: formData.doctorSpecialty,
+      notes: formData.notes,
+    };
 
+    console.log('Submitting appointment:', appointmentData);
+
+    const response = await axios.post("http://localhost:5001/api/appointments/", appointmentData, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    console.log('Booking response:', response.data);
+
+    setSuccess("Appointment booked successfully!");
+    setTimeout(() => navigate("/profile"), 1500);
+  } catch (err) {
+    console.error("Booking error:", err);
+    setError(err.response?.data?.error || "Failed to book appointment");
+  } finally {
+    setLoading(false);
+  }
+};
   const today = new Date().toISOString().split("T")[0];
   const maxDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -372,9 +412,15 @@ export default function BookAppointmentPage() {
                 </div>
 
                 {/* Time Selection */}
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
                     Select Time Slot *
+                    {formData.doctorSpecialty && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        (Showing availability for {formData.doctorSpecialty})
+                      </span>
+                    )}
                   </label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {timeSlots.map((slot) => {
@@ -385,19 +431,23 @@ export default function BookAppointmentPage() {
                           type="button"
                           onClick={() => !isTaken && setFormData(prev => ({ ...prev, time: slot }))}
                           disabled={isTaken}
-                          className={`py-2 px-3 rounded-lg font-semibold transition ${
-                            formData.time === slot
+                          className={`py-2 px-3 rounded-lg font-semibold transition ${formData.time === slot
                               ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
                               : isTaken
-                              ? "bg-red-200 text-red-800 cursor-not-allowed"
-                              : "bg-gray-100 hover:bg-gray-200"
-                          }`}
+                                ? "bg-red-200 text-red-800 cursor-not-allowed line-through"
+                                : "bg-gray-100 hover:bg-gray-200"
+                            }`}
                         >
-                          {slot} {isTaken && "❌"}
+                          {slot} {isTaken && "❌ Booked"}
                         </button>
                       );
                     })}
                   </div>
+                  {!formData.doctorSpecialty && (
+                    <p className="text-sm text-amber-600 mt-2">
+                      ⚠️ Please select a specialty first to see available time slots
+                    </p>
+                  )}
                 </div>
 
                 {/* Notes */}
@@ -450,7 +500,7 @@ export default function BookAppointmentPage() {
                 <h3 className="text-xl font-bold text-gray-800 mb-4">
                   📝 Patient Reviews ({hospitalReviews.length})
                 </h3>
-                
+
                 {reviewsLoading ? (
                   <div className="text-center py-4">
                     <div className="inline-block animate-spin text-2xl">⏳</div>
@@ -496,7 +546,7 @@ export default function BookAppointmentPage() {
               {/* Info Box */}
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-blue-800 text-sm">
-                  <span className="font-semibold">💡 Tip:</span> You can book multiple appointments and reschedule them from your profile. 
+                  <span className="font-semibold">💡 Tip:</span> You can book multiple appointments and reschedule them from your profile.
                   After your appointment is completed, you can write a review from your profile page.
                 </p>
               </div>

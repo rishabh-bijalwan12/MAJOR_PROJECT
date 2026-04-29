@@ -2,33 +2,62 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import PriceManagement from "../components/PriceManagement";
+import ProfilePictureUpload from "../components/ProfilePictureUpload";
 
 export default function DoctorProfilePage() {
   const navigate = useNavigate();
-  const [hospital, setHospital] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("hospital"));
-    } catch (e) {
-      return null;
-    }
-  });
+  const [hospital, setHospital] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [updateData, setUpdateData] = useState({
-    hospitalName: hospital?.hospitalName || "",
-    phone: hospital?.phone || "",
-    location: hospital?.location || "",
-    city: hospital?.city || "",
-    pincode: hospital?.pincode || "",
-    licenseNumber: hospital?.licenseNumber || "",
+    hospitalName: "",
+    phone: "",
+    location: "",
+    city: "",
+    pincode: "",
+    licenseNumber: "",
   });
+
+  // Load hospital data from localStorage on mount
+  useEffect(() => {
+    const loadHospitalData = () => {
+      try {
+        let doctorData = localStorage.getItem("doctor");
+        
+        if (doctorData) {
+          const parsedData = JSON.parse(doctorData);
+          setHospital(parsedData);
+          setUpdateData({
+            hospitalName: parsedData.hospitalName || "",
+            phone: parsedData.phone || "",
+            location: parsedData.location || "",
+            city: parsedData.city || "",
+            pincode: parsedData.pincode || "",
+            licenseNumber: parsedData.licenseNumber || "",
+          });
+        }
+      } catch (e) {
+        console.error("Error loading hospital data:", e);
+      }
+    };
+    
+    loadHospitalData();
+  }, []);
+
+  const handleProfilePictureUpdate = (newPictureUrl) => {
+    setHospital(prev => ({ ...prev, profilePicture: newPictureUrl }));
+    // Update localStorage
+    const updatedDoctor = { ...hospital, profilePicture: newPictureUrl };
+    localStorage.setItem("doctor", JSON.stringify(updatedDoctor));
+  };
 
   if (!hospital) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Not Logged In</h2>
+          <p className="text-gray-600 mb-6">Please login as a hospital to access your profile.</p>
           <button
             onClick={() => navigate("/doctor-register")}
             className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -43,9 +72,8 @@ export default function DoctorProfilePage() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userType");
-    localStorage.removeItem("hospital");
     localStorage.removeItem("doctor");
-    navigate("/");
+    navigate("/doctor-register");
   };
 
   const handleUpdateChange = (e) => {
@@ -65,10 +93,12 @@ export default function DoctorProfilePage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (response.data.doctor) {
-        setHospital(response.data.doctor);
-        localStorage.setItem("hospital", JSON.stringify(response.data.doctor));
+        const updatedDoctor = response.data.doctor;
+        setHospital(updatedDoctor);
+        localStorage.setItem("doctor", JSON.stringify(updatedDoctor));
       }
       setShowUpdateForm(false);
+      setError(null);
     } catch (err) {
       console.error("Update failed", err);
       setError(err.response?.data?.error || err.message || "Update failed");
@@ -76,6 +106,8 @@ export default function DoctorProfilePage() {
       setLoading(false);
     }
   };
+
+  const hospitalId = hospital.id || hospital._id;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 py-12 px-4">
@@ -105,36 +137,40 @@ export default function DoctorProfilePage() {
           <div className="h-32 bg-gradient-to-r from-indigo-600 to-blue-600"></div>
 
           <div className="px-8 py-6 relative">
-            <div className="flex items-center gap-6 mb-8">
-              <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center text-4xl -mt-12 border-4 border-white shadow-lg">
-                🏥
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">{hospital.hospitalName}</h2>
-                <p className="text-gray-500">{hospital.email}</p>
-              </div>
+            {/* Profile Picture Upload */}
+            <div className="flex justify-center -mt-16 mb-6">
+              <ProfilePictureUpload 
+                currentPicture={hospital.profilePicture}
+                onUploadSuccess={handleProfilePictureUpdate}
+              />
+            </div>
+
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-800">{hospital.hospitalName}</h2>
+              <p className="text-gray-500">{hospital.email}</p>
+              <p className="text-xs text-gray-400 mt-1">ID: {hospitalId}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 font-medium">Phone</p>
-                <p className="text-lg text-gray-800 font-semibold">{hospital.phone}</p>
+                <p className="text-lg text-gray-800 font-semibold">{hospital.phone || "Not set"}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 font-medium">Pincode</p>
-                <p className="text-lg text-gray-800 font-semibold">{hospital.pincode}</p>
+                <p className="text-lg text-gray-800 font-semibold">{hospital.pincode || "Not set"}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 font-medium">License Number</p>
-                <p className="text-lg text-gray-800 font-semibold">{hospital.licenseNumber}</p>
+                <p className="text-lg text-gray-800 font-semibold">{hospital.licenseNumber || "Not set"}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 font-medium">Location</p>
-                <p className="text-lg text-gray-800 font-semibold">{hospital.location}</p>
+                <p className="text-lg text-gray-800 font-semibold">{hospital.location || "Not set"}</p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 font-medium">City</p>
-                <p className="text-lg text-gray-800 font-semibold">{hospital.city}</p>
+                <p className="text-lg text-gray-800 font-semibold">{hospital.city || "Not set"}</p>
               </div>
             </div>
 

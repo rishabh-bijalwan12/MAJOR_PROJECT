@@ -4,6 +4,7 @@ const appointmentController = require('../controllers/appointmentController');
 
 const router = express.Router();
 
+// Make sure all controller functions exist
 router.post('/', authMiddleware, appointmentController.createAppointment);
 router.get('/hospital', authMiddleware, appointmentController.getHospitalAppointments);
 router.get('/my-appointments', authMiddleware, appointmentController.getPatientAppointments);

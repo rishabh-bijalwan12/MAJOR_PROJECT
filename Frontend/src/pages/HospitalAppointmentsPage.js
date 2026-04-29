@@ -55,15 +55,6 @@ export default function HospitalAppointmentsPage() {
     }
   };
 
-  useEffect(() => {
-    if (doctor && (doctor.id || doctor._id)) {
-      fetchAppointments();
-    } else {
-      setLoading(false);
-      setError("Please login as a hospital to view appointments.");
-    }
-  }, []); // Empty dependency array - runs only once
-
   const markAsCompleted = async (appointmentId) => {
     if (!window.confirm("Mark this appointment as completed? Patient will be able to leave a review.")) {
       return;
@@ -81,6 +72,7 @@ export default function HospitalAppointmentsPage() {
       await fetchAppointments();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
+      console.error("Error:", err);
       setError(err.response?.data?.error || "Failed to mark as completed");
       setTimeout(() => setError(null), 3000);
     } finally {
@@ -103,12 +95,22 @@ export default function HospitalAppointmentsPage() {
       await fetchAppointments();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
+      console.error("Error:", err);
       setError(err.response?.data?.error || "Failed to cancel appointment");
       setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (doctor && (doctor.id || doctor._id)) {
+      fetchAppointments();
+    } else {
+      setLoading(false);
+      setError("Please login as a hospital to view appointments.");
+    }
+  }, []);
 
   if (!doctor || (!doctor.id && !doctor._id)) {
     return (
@@ -132,7 +134,7 @@ export default function HospitalAppointmentsPage() {
       case "confirmed":
         return <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full">Confirmed</span>;
       case "rescheduled":
-        return <span className="px-2 py-1 bg-blue-500 text-white text-xs rounded-full">Rescheduled</span>;
+        return <span className="px-2 py-1 bg-orange-500 text-white text-xs rounded-full">Rescheduled</span>;
       case "completed":
         return <span className="px-2 py-1 bg-purple-500 text-white text-xs rounded-full">Completed</span>;
       case "cancelled":
@@ -140,6 +142,16 @@ export default function HospitalAppointmentsPage() {
       default:
         return <span className="px-2 py-1 bg-gray-500 text-white text-xs rounded-full">{status}</span>;
     }
+  };
+
+  // Check if appointment can be marked as completed (confirmed OR rescheduled)
+  const canMarkAsCompleted = (status) => {
+    return status === "confirmed" || status === "rescheduled";
+  };
+
+  // Check if appointment can be cancelled (confirmed OR rescheduled)
+  const canCancel = (status) => {
+    return status === "confirmed" || status === "rescheduled";
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -150,9 +162,9 @@ export default function HospitalAppointmentsPage() {
   const stats = {
     total: appointments.length,
     confirmed: appointments.filter(a => a.status === "confirmed").length,
+    rescheduled: appointments.filter(a => a.status === "rescheduled").length,
     completed: appointments.filter(a => a.status === "completed").length,
     cancelled: appointments.filter(a => a.status === "cancelled").length,
-    rescheduled: appointments.filter(a => a.status === "rescheduled").length
   };
 
   const hospitalId = doctor.id || doctor._id;
@@ -179,13 +191,13 @@ export default function HospitalAppointmentsPage() {
             <p className="text-2xl font-bold text-green-600">{stats.confirmed}</p>
             <p className="text-sm text-green-600">Confirmed</p>
           </div>
+          <div className="bg-orange-50 rounded-xl p-4 shadow-md text-center">
+            <p className="text-2xl font-bold text-orange-600">{stats.rescheduled}</p>
+            <p className="text-sm text-orange-600">Rescheduled</p>
+          </div>
           <div className="bg-purple-50 rounded-xl p-4 shadow-md text-center">
             <p className="text-2xl font-bold text-purple-600">{stats.completed}</p>
             <p className="text-sm text-purple-600">Completed</p>
-          </div>
-          <div className="bg-yellow-50 rounded-xl p-4 shadow-md text-center">
-            <p className="text-2xl font-bold text-yellow-600">{stats.rescheduled}</p>
-            <p className="text-sm text-yellow-600">Rescheduled</p>
           </div>
           <div className="bg-red-50 rounded-xl p-4 shadow-md text-center">
             <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
@@ -216,6 +228,16 @@ export default function HospitalAppointmentsPage() {
             Confirmed ({stats.confirmed})
           </button>
           <button
+            onClick={() => setFilterStatus("rescheduled")}
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              filterStatus === "rescheduled"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            Rescheduled ({stats.rescheduled})
+          </button>
+          <button
             onClick={() => setFilterStatus("completed")}
             className={`px-4 py-2 rounded-lg font-semibold transition ${
               filterStatus === "completed"
@@ -224,16 +246,6 @@ export default function HospitalAppointmentsPage() {
             }`}
           >
             Completed ({stats.completed})
-          </button>
-          <button
-            onClick={() => setFilterStatus("rescheduled")}
-            className={`px-4 py-2 rounded-lg font-semibold transition ${
-              filterStatus === "rescheduled"
-                ? "bg-yellow-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            Rescheduled ({stats.rescheduled})
           </button>
           <button
             onClick={() => setFilterStatus("cancelled")}
@@ -294,7 +306,7 @@ export default function HospitalAppointmentsPage() {
               <div key={apt._id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <h3 className="text-xl font-bold text-gray-800">
                         {apt.patientId?.name || "Patient"}
                       </h3>
@@ -327,22 +339,22 @@ export default function HospitalAppointmentsPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3 justify-end">
-                  {apt.status === "confirmed" && (
-                    <>
-                      <button
-                        onClick={() => markAsCompleted(apt._id)}
-                        className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition font-semibold"
-                      >
-                        ✓ Mark as Completed
-                      </button>
-                      <button
-                        onClick={() => cancelAppointment(apt._id)}
-                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition font-semibold"
-                      >
-                        ❌ Cancel
-                      </button>
-                    </>
+                <div className="flex gap-3 justify-end flex-wrap">
+                  {canMarkAsCompleted(apt.status) && (
+                    <button
+                      onClick={() => markAsCompleted(apt._id)}
+                      className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition font-semibold"
+                    >
+                      ✓ Mark as Completed
+                    </button>
+                  )}
+                  {canCancel(apt.status) && (
+                    <button
+                      onClick={() => cancelAppointment(apt._id)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition font-semibold"
+                    >
+                      ❌ Cancel
+                    </button>
                   )}
                   {apt.status === "completed" && (
                     <div className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold">
@@ -352,11 +364,6 @@ export default function HospitalAppointmentsPage() {
                   {apt.status === "cancelled" && (
                     <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold">
                       Cancelled
-                    </div>
-                  )}
-                  {apt.status === "rescheduled" && (
-                    <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold">
-                      Rescheduled
                     </div>
                   )}
                 </div>
@@ -371,9 +378,11 @@ export default function HospitalAppointmentsPage() {
             <br />
             1. When a patient books an appointment, status is "Confirmed"
             <br />
-            2. After the appointment is done, click "Mark as Completed"
+            2. If patient reschedules, status becomes "Rescheduled"
             <br />
-            3. Patient can then write a review from their profile page
+            3. After the appointment is done, click "Mark as Completed" (works for both Confirmed and Rescheduled)
+            <br />
+            4. Patient can then write a review from their profile page
           </p>
         </div>
       </div>

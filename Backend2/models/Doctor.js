@@ -41,6 +41,10 @@ const doctorSchema = new mongoose.Schema({
     required: [true, 'Please provide license number'],
     unique: true
   },
+  profilePicture: {
+    type: String,
+    default: ''
+  },
   averageRating: {
     type: Number,
     default: 0,
