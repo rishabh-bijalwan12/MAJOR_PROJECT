@@ -9,8 +9,11 @@ const doctorRoutes = require('./routes/doctorRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const priceRoutes = require('./routes/priceRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
+
+// Add this with other route declarations
 
 // Connect to database
 connectDB();
@@ -29,6 +32,7 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/prices', priceRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
