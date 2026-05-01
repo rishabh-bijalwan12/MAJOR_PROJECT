@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
-  User, Mail, Phone, MapPin, Calendar, Clock, 
+  MapPin, Calendar, Clock, 
   LogOut, Plus, Star, CheckCircle, XCircle, 
   RefreshCw, AlertCircle, Hospital, Stethoscope,
   FileText, Edit2, Trash2, Heart, Activity,
-  Award, TrendingUp, Sparkles, ChevronRight,
-  CreditCard, Wallet, DollarSign, Clock as ClockIcon
+  Award, Sparkles,
+  CreditCard, Wallet, Clock as ClockIcon
 } from "lucide-react";
 import RescheduleModal from "../components/Appointment/RescheduleModal";
 import ReviewModal from "../components/ReviewModal";

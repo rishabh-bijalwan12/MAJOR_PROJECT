@@ -17,7 +17,6 @@ const authMiddleware = (req, res, next) => {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
     
-    // Get userId from either userId or id field
     const userId = decoded.userId || decoded.id;
     
     if (!userId) {

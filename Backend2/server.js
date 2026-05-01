@@ -13,8 +13,6 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
-// Add this with other route declarations
-
 // Connect to database
 connectDB();
 
@@ -33,11 +31,6 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/prices', priceRoutes);
 app.use('/api/payments', paymentRoutes);
-
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API is working!' });
-});
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {

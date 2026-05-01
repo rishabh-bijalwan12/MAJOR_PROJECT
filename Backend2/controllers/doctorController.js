@@ -199,8 +199,6 @@ exports.updateDoctorProfile = async (req, res) => {
   }
 };
 
-// ========== NEW PROFILE PICTURE FUNCTIONS ==========
-
 exports.uploadProfilePicture = async (req, res) => {
   try {
     console.log('Upload request received');

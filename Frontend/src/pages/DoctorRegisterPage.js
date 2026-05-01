@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   Mail, Lock, Phone, Building, MapPin, 
-  CreditCard, User, Eye, EyeOff, 
-  CheckCircle, AlertCircle, Hospital, 
+  CreditCard, Eye, EyeOff, 
+  CheckCircle, AlertCircle, 
   ArrowRight, Sparkles, Shield, Star
 } from "lucide-react";
 
