@@ -44,7 +44,7 @@ function PaymentModal({ appointment, amount, onClose, onSuccess }) {
 
       const options = {
         key: keyId,
-        amount: amount * 100,
+        amount: amount,
         currency: 'INR',
         name: 'MediCare Hospital',
         description: `Appointment Payment - ${appointment.doctorSpecialty}`,

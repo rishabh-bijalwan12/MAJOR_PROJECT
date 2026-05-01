@@ -7,7 +7,7 @@ import {
   RefreshCw, AlertCircle, Hospital, Stethoscope,
   FileText, Edit2, Trash2, Heart, Activity,
   Award, TrendingUp, Sparkles, ChevronRight,
-  Building, CreditCard
+  CreditCard, Wallet, DollarSign, Clock as ClockIcon
 } from "lucide-react";
 import RescheduleModal from "../components/Appointment/RescheduleModal";
 import ReviewModal from "../components/ReviewModal";
@@ -22,6 +22,7 @@ export default function ProfilePage() {
     }
   });
   const [appointments, setAppointments] = useState([]);
+  const [payments, setPayments] = useState({});
   const [loading, setLoading] = useState(false);
   const [rescheduleId, setRescheduleId] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(null);
@@ -46,18 +47,33 @@ export default function ProfilePage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (response.data.appointments) {
+        // Fetch reviews for each appointment
         const appointmentsWithReviewStatus = await Promise.all(
           response.data.appointments.map(async (apt) => {
             try {
+              // Check for review
               const reviewResponse = await axios.get(
                 `http://localhost:5001/api/reviews/appointment/${apt._id}`,
                 {
                   headers: token ? { Authorization: `Bearer ${token}` } : {},
                 }
               );
-              return { ...apt, hasReview: reviewResponse.data.exists };
+              
+              // Fetch payment status
+              const paymentResponse = await axios.get(
+                `http://localhost:5001/api/payments/status/${apt._id}`,
+                {
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                }
+              );
+              
+              return { 
+                ...apt, 
+                hasReview: reviewResponse.data.exists,
+                payment: paymentResponse.data.payment
+              };
             } catch {
-              return { ...apt, hasReview: false };
+              return { ...apt, hasReview: false, payment: null };
             }
           })
         );
@@ -179,6 +195,31 @@ export default function ProfilePage() {
     }
   };
 
+  const getPaymentStatusBadge = (payment) => {
+    if (!payment) {
+      return { color: "bg-gray-400", icon: <ClockIcon className="w-3 h-3" />, text: "Pending" };
+    }
+    switch (payment.paymentStatus) {
+      case "completed":
+        return { color: "bg-green-500", icon: <CheckCircle className="w-3 h-3" />, text: payment.paymentMethod === "cash" ? "Cash Paid" : "Online Paid" };
+      case "pending":
+        return { color: "bg-yellow-500", icon: <ClockIcon className="w-3 h-3" />, text: "Payment Pending" };
+      case "failed":
+        return { color: "bg-red-500", icon: <XCircle className="w-3 h-3" />, text: "Payment Failed" };
+      case "refunded":
+        return { color: "bg-orange-500", icon: <RefreshCw className="w-3 h-3" />, text: "Refunded" };
+      default:
+        return { color: "bg-gray-400", icon: <ClockIcon className="w-3 h-3" />, text: "Pending" };
+    }
+  };
+
+  const getPaymentMethodIcon = (payment) => {
+    if (!payment) return <Wallet className="w-3 h-3" />;
+    return payment.paymentMethod === "cash" ? 
+      <Wallet className="w-3 h-3" /> : 
+      <CreditCard className="w-3 h-3" />;
+  };
+
   const stats = {
     total: appointments.length,
     confirmed: appointments.filter(a => a.status === "confirmed").length,
@@ -211,47 +252,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
-        {/* Profile Card - Improved Layout */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 h-20 sm:h-24"></div>
-          <div className="px-4 sm:px-6 pb-6 relative">
-            <div className="flex flex-col sm:flex-row gap-4 -mt-10 sm:-mt-12 mb-4 sm:mb-6">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg border-4 border-white mx-auto sm:mx-0">
-                <User className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
-              </div>
-              <div className="text-center sm:text-left flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{user.name}</h2>
-                <p className="text-black text-sm pt-8">Patient ID: {user.id?.substring(0, 8)}</p>
-              </div>
-            </div>
-
-            {/* User Details Grid - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                <Mail className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                <span className="text-sm text-gray-700 truncate">{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                <Phone className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <span className="text-sm text-gray-700">{user.phone}</span>
-              </div>
-              {user.age && (
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                  <Activity className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700">{user.age} years</span>
-                </div>
-              )}
-              {user.location && (
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                  <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 truncate">{user.location}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards - Responsive */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300">
             <div className="flex items-center justify-between">
@@ -344,6 +345,8 @@ export default function ProfilePage() {
             <div className="divide-y divide-gray-100">
               {appointments.map((appointment) => {
                 const statusInfo = getStatusBadge(appointment.status);
+                const paymentStatus = getPaymentStatusBadge(appointment.payment);
+                const paymentMethodIcon = getPaymentMethodIcon(appointment.payment);
                 return (
                   <div key={appointment.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-all duration-300">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -361,12 +364,12 @@ export default function ProfilePage() {
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
                           <div className="flex items-center gap-2">
                             <Stethoscope className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                            <div className="min-w-0">
+                            <div>
                               <p className="text-xs text-gray-500">SPECIALTY</p>
-                              <p className="font-semibold text-sm truncate">{appointment.doctorSpecialty || "General"}</p>
+                              <p className="font-semibold text-sm">{appointment.doctorSpecialty || "General"}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -381,6 +384,24 @@ export default function ProfilePage() {
                             <div>
                               <p className="text-xs text-gray-500">TIME</p>
                               <p className="font-bold text-lg text-indigo-600">{appointment.time}</p>
+                            </div>
+                          </div>
+                          {/* Payment Status */}
+                          <div className="flex items-center gap-2">
+                            {paymentMethodIcon}
+                            <div>
+                              <p className="text-xs text-gray-500">PAYMENT</p>
+                              <div className="flex items-center gap-1">
+                                <div className={`flex items-center gap-1 px-2 py-0.5 ${paymentStatus.color} text-white text-xs rounded-full`}>
+                                  {paymentStatus.icon}
+                                  <span>{paymentStatus.text}</span>
+                                </div>
+                                {appointment.payment && (
+                                  <span className="text-xs font-semibold text-gray-600">
+                                    ₹{appointment.payment.amount}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

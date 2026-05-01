@@ -13,7 +13,14 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "best_cnn_model.h5")
 INPUT_SIZE = (224, 224)
 
 print("Loading CNN model...")
-model = keras.models.load_model(MODEL_PATH)   # ✅ changed
+import tensorflow as tf
+
+model = keras.models.load_model(
+    MODEL_PATH,
+    custom_objects={
+        "DTypePolicy": tf.keras.mixed_precision.Policy
+    }
+)
 print("Model loaded successfully!")
 
 model.predict(np.zeros((1, 224, 224, 3)))

@@ -6,7 +6,7 @@ import {
   ArrowLeft, CheckCircle, AlertCircle, Hospital,
   Stethoscope, FileText, ChevronRight, Filter, X,
   TrendingUp, Shield, Award, Sparkles, Heart, Users,
-  CreditCard, Wallet
+  CreditCard
 } from "lucide-react";
 import PaymentModal from "../components/PaymentModal";
 
@@ -466,7 +466,6 @@ export default function BookAppointmentPage() {
             </>
           ) : (
             <>
-              {/* Hospital Header */}
               {/* Hospital Header */}
               <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-6">
                 <button

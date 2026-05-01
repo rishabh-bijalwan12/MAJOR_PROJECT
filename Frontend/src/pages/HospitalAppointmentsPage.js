@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { 
-  Calendar, Clock, User, Mail, Phone, 
+import {
+  Calendar, Clock, User, Mail, Phone,
   CheckCircle, XCircle, RefreshCw, Filter,
-  TrendingUp, AlertCircle, Hospital, 
-  Stethoscope, FileText, LogOut, 
-  ChevronRight, Star, Activity, Users
+  TrendingUp, AlertCircle, Hospital,
+  Stethoscope, FileText, LogOut,
+  ChevronRight, Star, Activity, Users,
+  Wallet, CreditCard, Clock as ClockIcon
 } from "lucide-react";
 
 export default function HospitalAppointmentsPage() {
@@ -15,8 +16,9 @@ export default function HospitalAppointmentsPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [payments, setPayments] = useState({});
   const navigate = useNavigate();
-  
+
   const doctor = (() => {
     try {
       const doc = JSON.parse(localStorage.getItem("doctor"));
@@ -31,24 +33,38 @@ export default function HospitalAppointmentsPage() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem("token");
-      
+
       if (!token) {
         setError("No authentication token found. Please login again.");
         setLoading(false);
         return;
       }
-      
+
       if (!doctor) {
         setError("Hospital data not found. Please login again.");
         setLoading(false);
         return;
       }
-      
+
       const response = await axios.get("http://localhost:5001/api/appointments/hospital", {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      const appointmentsData = response.data.appointments || [];
+      setAppointments(appointmentsData);
       
-      setAppointments(response.data.appointments || []);
+      // Fetch payment status for each appointment
+      for (const apt of appointmentsData) {
+        try {
+          const paymentResponse = await axios.get(
+            `http://localhost:5001/api/payments/status/${apt._id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setPayments(prev => ({ ...prev, [apt._id]: paymentResponse.data.payment }));
+        } catch (err) {
+          console.error("Failed to fetch payment for appointment:", apt._id);
+        }
+      }
     } catch (err) {
       console.error("Error fetching appointments:", err);
       setError(err.response?.data?.error || "Failed to fetch appointments");
@@ -61,7 +77,7 @@ export default function HospitalAppointmentsPage() {
     if (!window.confirm("Mark this appointment as completed? Patient will be able to leave a review.")) {
       return;
     }
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -85,7 +101,7 @@ export default function HospitalAppointmentsPage() {
     if (!window.confirm("Are you sure you want to cancel this appointment?")) {
       return;
     }
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -117,6 +133,26 @@ export default function HospitalAppointmentsPage() {
     localStorage.removeItem("userType");
     localStorage.removeItem("doctor");
     navigate("/doctor-register");
+  };
+
+  const getPaymentStatusBadge = (payment) => {
+    if (!payment) {
+      return { color: "bg-yellow-100", textColor: "text-yellow-700", icon: <ClockIcon className="w-3 h-3" />, text: "Pending" };
+    }
+    if (payment.paymentStatus === "completed") {
+      if (payment.paymentMethod === "cash") {
+        return { color: "bg-green-100", textColor: "text-green-700", icon: <Wallet className="w-3 h-3" />, text: `Cash Paid - ₹${payment.amount}` };
+      } else {
+        return { color: "bg-green-100", textColor: "text-green-700", icon: <CreditCard className="w-3 h-3" />, text: `Online Paid - ₹${payment.amount}` };
+      }
+    }
+    if (payment.paymentStatus === "pending") {
+      return { color: "bg-yellow-100", textColor: "text-yellow-700", icon: <ClockIcon className="w-3 h-3" />, text: `Pending - ₹${payment.amount}` };
+    }
+    if (payment.paymentStatus === "failed") {
+      return { color: "bg-red-100", textColor: "text-red-700", icon: <XCircle className="w-3 h-3" />, text: "Failed" };
+    }
+    return { color: "bg-gray-100", textColor: "text-gray-700", icon: <AlertCircle className="w-3 h-3" />, text: "Unknown" };
   };
 
   if (!doctor || (!doctor.id && !doctor._id)) {
@@ -272,52 +308,47 @@ export default function HospitalAppointmentsPage() {
         <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setFilterStatus("all")}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
-              filterStatus === "all"
-                ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${filterStatus === "all"
+              ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             <Filter className="w-4 h-4" />
             All ({stats.total})
           </button>
           <button
             onClick={() => setFilterStatus("confirmed")}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-              filterStatus === "confirmed"
-                ? "bg-green-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${filterStatus === "confirmed"
+              ? "bg-green-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Confirmed ({stats.confirmed})
           </button>
           <button
             onClick={() => setFilterStatus("rescheduled")}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-              filterStatus === "rescheduled"
-                ? "bg-orange-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${filterStatus === "rescheduled"
+              ? "bg-orange-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Rescheduled ({stats.rescheduled})
           </button>
           <button
             onClick={() => setFilterStatus("completed")}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-              filterStatus === "completed"
-                ? "bg-purple-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${filterStatus === "completed"
+              ? "bg-purple-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Completed ({stats.completed})
           </button>
           <button
             onClick={() => setFilterStatus("cancelled")}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-              filterStatus === "cancelled"
-                ? "bg-red-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${filterStatus === "cancelled"
+              ? "bg-red-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             Cancelled ({stats.cancelled})
           </button>
@@ -331,7 +362,7 @@ export default function HospitalAppointmentsPage() {
                 <AlertCircle className="w-5 h-5 text-red-600" />
                 <p className="text-red-700">{error}</p>
               </div>
-              <button 
+              <button
                 onClick={fetchAppointments}
                 className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
               >
@@ -340,7 +371,7 @@ export default function HospitalAppointmentsPage() {
             </div>
           </div>
         )}
-        
+
         {success && (
           <div className="mb-6 bg-green-50 rounded-xl p-4 border border-green-200 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center gap-2">
@@ -382,6 +413,7 @@ export default function HospitalAppointmentsPage() {
           <div className="space-y-4">
             {filteredAppointments.map((apt) => {
               const statusInfo = getStatusBadge(apt.status);
+              const paymentInfo = getPaymentStatusBadge(payments[apt._id]);
               return (
                 <div key={apt._id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
                   <div className="p-6">
@@ -397,6 +429,11 @@ export default function HospitalAppointmentsPage() {
                           <div className={`flex items-center gap-1 px-2 py-1 ${statusInfo.color} text-white text-xs rounded-full`}>
                             {statusInfo.icon}
                             <span>{statusInfo.text}</span>
+                          </div>
+                          {/* Payment Status Badge */}
+                          <div className={`flex items-center gap-1 px-2 py-1 ${paymentInfo.color} ${paymentInfo.textColor} text-xs rounded-full`}>
+                            {paymentInfo.icon}
+                            <span>{paymentInfo.text}</span>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">

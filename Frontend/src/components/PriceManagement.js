@@ -3,7 +3,7 @@ import axios from "axios";
 import { 
   DollarSign, Edit2, Save, X, RefreshCw, 
   TrendingUp, AlertCircle, CheckCircle, 
-  CreditCard, Stethoscope, Plus, Trash2
+  CreditCard
 } from "lucide-react";
 
 export default function PriceManagement() {
@@ -114,7 +114,7 @@ export default function PriceManagement() {
     return specialty || specialties[0];
   };
 
-  // Show login prompt if no doctor data
+
   const doctorStr = localStorage.getItem("doctor");
   if (!doctorStr) {
     return (
